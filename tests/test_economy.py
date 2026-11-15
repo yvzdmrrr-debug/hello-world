@@ -561,6 +561,21 @@ class TestAcceptanceLedger(Base):
                          ("Doğrulandı", "Test başarısız", "Test bekliyor"))
         self.assertEqual(st["dogrulanan"], 1)
 
+    def test_live_check_per_provider(self):
+        good = Fake("iyi", models=["a"])
+        bad = Fake("bozuk", models=["b"], behavior={"b": "error"})
+        j = self.make(good)
+        j.db.run("INSERT INTO test_results VALUES(1,'t',1,'x')")
+        out = acceptance.live(j)
+        self.assertIn("iyi/a yanıt verdi (100 giriş / 50 çıkış", out)
+        self.assertEqual({t["no"]: t["durum"] for t in acceptance.status(j.db)["testler"]}[1], "Doğrulandı")
+        self.assertEqual(j.db.one("SELECT purpose, task_id FROM token_usage")["purpose"], "canli-test")
+        j2 = self.make(good, bad)
+        out = acceptance.live(j2)
+        self.assertIn("ÇAĞRI BAŞARISIZ", out)
+        self.assertNotIn(SECRET, out)
+        self.assertEqual(j2.db.get_setting("canli.3"), "0")
+
     def test_run_records_real_results(self):
         import os
         if os.environ.get("JARVIS_KABUL_ICINDE"):  # kendi kendini sonsuz çağırmasın

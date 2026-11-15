@@ -1,0 +1,15 @@
+{
+  "name": "agentos-supreme",
+  "productName": "AgentOS Supreme",
+  "version": "1.0.0",
+  "description": "AgentOS Supreme — sesli, holografik masaüstü yapay zekâ arayüzü",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/mantik.test.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.7.0",
+    "electron": "^33.2.0"
+  }
+}
