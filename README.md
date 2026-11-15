@@ -1,11 +1,11 @@
-# hello-world
+# AgentOS Supreme
 Bu depo GitHub Flow'u uygulamak içindir.
 uykuyu seviyorum
 çok severim hem
 
 ---
 
-# JARVIS SUPREME V40.0
+## JARVIS SUPREME V40.0 çekirdeği
 
 Tek merkezli, denetlenebilir dijital zekâ çekirdeği. Python 3.10+ ile çalışır; çekirdeğin
 dış bağımlılığı yoktur.
