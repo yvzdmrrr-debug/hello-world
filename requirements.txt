@@ -1,0 +1,2 @@
+# İsteğe bağlı: Claude bağlantısı (serbest sorular ve otomatik Skill üretimi) için
+anthropic>=2.8
