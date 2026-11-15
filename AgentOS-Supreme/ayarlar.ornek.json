@@ -1,0 +1,8 @@
+{
+  "sesModeli": "Xenova/whisper-base",
+  "sohbet": {
+    "adres": "http://localhost:11434/v1",
+    "model": "llama3.2",
+    "anahtarDegiskeni": ""
+  }
+}

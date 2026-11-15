@@ -30,6 +30,7 @@ HELP = """Komutlar:
   maliyet [görev-no]    Token ve maliyet raporu
   devam-et              Bekleyen görevleri kaldığı yerden sürdür
   kabul                 30 kabul testini çalıştır ve sonuçları kaydet
+  canli-test            Her bağlı sağlayıcıyı kendi modeliyle canlı dene (küçük, ücretli olabilir)
   yardim | cik"""
 
 
@@ -122,6 +123,9 @@ def command(j: Jarvis, line: str) -> str:
     if cmd == "devam-et":
         rs = j.resume_pending()
         return "\n\n".join(format_report(r) for r in rs) or "Bekleyen görev yok."
+    if cmd == "canli-test":
+        from . import acceptance
+        return acceptance.live(j)
     if cmd == "kabul":
         from . import acceptance
         st = acceptance.run(j.db)
