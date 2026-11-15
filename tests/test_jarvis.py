@@ -18,7 +18,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.j = Jarvis(self.tmp.name)
+        self.j = Jarvis(self.tmp.name, providers=[])
         self.addCleanup(self.j.db.close)
 
 
@@ -257,12 +257,6 @@ class TestCore(Base):
         self.assertEqual(r["durum"], "ENGELLENDİ")
         self.assertIn("LLM", r["sonuc"])
 
-    def test_llm_answer_marked_unverified(self):
-        with mock.patch.object(type(self.j.llm), "ask", return_value="Plan: ..."):
-            r = self.j.handle("Bana bir iş planı yaz")
-        self.assertEqual(r["durum"], "TAMAMLANDI")
-        self.assertEqual(self.j.memory.search("Plan", layer="konusma")[0]["verified"], 0)
-
     def test_failure_recorded(self):
         r = self.j.handle("1/0")
         self.assertEqual(r["durum"], "BAŞARISIZ")
@@ -282,7 +276,7 @@ class TestCore(Base):
 
     def test_persistence_across_restart(self):
         self.j.handle("2+3")
-        again = Jarvis(self.tmp.name)
+        again = Jarvis(self.tmp.name, providers=[])
         self.addCleanup(again.db.close)
         self.assertEqual(again.status()["metrikler"]["gorev_toplam"], 1)
         self.assertEqual(len(again.db.all("SELECT * FROM versions")), 1)

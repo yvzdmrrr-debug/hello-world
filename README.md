@@ -18,15 +18,42 @@ python -m jarvis panel      # Dashboard: http://127.0.0.1:8040
 python -m unittest discover -s tests   # testler
 ```
 
-Serbest sorular ve otomatik Skill üretimi için Claude bağlantısı gerekir:
+### LLM sağlayıcıları
+
+Tanımlı ortam değişkenlerine göre sağlayıcılar kendiliğinden bağlanır. Anahtarları koda
+ya da depoya yazmayın; JARVIS yalnızca değişkenin adını saklar.
+
+| Değişken | Sağlayıcı |
+|---|---|
+| `JARVIS_LOCAL_URL` | Yerel model (Ollama, llama.cpp vb.), örn. `http://localhost:11434/v1` |
+| `GEMINI_API_KEY` | Google Gemini |
+| `ANTHROPIC_API_KEY` | Claude (`pip install -r requirements.txt` gerekir) |
+| `OPENAI_API_KEY` | OpenAI |
+| `OPENROUTER_API_KEY` | OpenRouter |
 
 ```bash
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=...     # anahtarı koda veya depoya yazmayın
+python -m jarvis kesfet     # modelleri listele (ücretsiz)
+python -m jarvis modeller   # seviye, fiyat, kota
+python -m jarvis kabul      # 30 kabul testini çalıştır, sonucu panele yaz
 ```
 
-Bağlantı yokken JARVIS çevrimdışı çalışır; dil modeli gerektiren işleri uydurmaz,
+Sağlayıcı yokken JARVIS çevrimdışı çalışır; dil modeli gerektiren işleri uydurmaz,
 `ENGELLENDİ` olarak bildirir.
+
+### LLM ve token ekonomisi nasıl çalışır
+
+- **Seviye 0:** hesaplama gibi işler LLM'siz, testli Skill'lerle çözülür.
+- **Model seçimi:** beklenen maliyet, doğrulanmış başarı oranına bölünerek sıralanır;
+  yerel ve ucuz modeller uygunsa öne geçer, kod ve mimari işleri doğrudan üst seviyeden başlar.
+- **Model kaçışı ve devir:** zaman aşımı, hata, kota ya da başarısız kabul testinde iş bir
+  sonraki uygun modele devredilir. Tamamlanan alt görevler yeniden yapılmaz.
+- **Muhasebe:** her istek token, maliyet ve tarife sürümüyle kaydedilir. Fiyatı bilinmeyen
+  model sıfır sayılmaz; onay ister. Fiyatı `fiyat <model> <giriş> <çıkış>` ile siz tanımlarsınız
+  (yalnızca Claude fiyatları hazır gelir).
+- **Bütçe:** günlük 5, aylık 50, görev başına 1 USD; 0,5 USD üstü tek çağrı onay ister.
+  `butce` komutuyla değişir.
+- **Hafıza araması:** metadata → tam metin → vektör → yeniden sıralama; modele yalnızca
+  ilgili kayıtlar, token bütçesi içinde gider.
 
 ## Ne çalışıyor (testli)
 
@@ -39,7 +66,11 @@ Bağlantı yokken JARVIS çevrimdışı çalışır; dil modeli gerektiren işle
 | Ajan fabrikası | `jarvis/agents.py` | Ajan yalnızca kendisine verilen Skill'leri kullanır |
 | Sanal işlem | `jarvis/finance.py` | Hareketli ortalama backtest'i, kayıp limiti |
 | Dashboard | `jarvis/dashboard.py` | Gerçek durum, hedef verme, onay, durdurma |
-| Claude bağlantısı | `jarvis/llm.py` | Canlı API ile **denenmedi** (anahtar yoktu); testlerde taklit edildi |
+| Sağlayıcı adaptörleri | `jarvis/providers.py` | Yerel/OpenAI uyumlu, Gemini, Claude. Canlı API ile **denenmedi**; yerel taklit sunucuya karşı sınandı |
+| Token muhasebesi, bütçe, kota | `jarvis/economy.py` | Tarife sürümleri, onay kapıları, yenilenme saatine göre kota |
+| Yönlendirme ve görev devri | `jarvis/router.py` | Alt görevlere ayırma, model seçimi, devir paketi, kilit |
+| Kademeli hafıza araması | `jarvis/retrieval.py` | Kalıcı vektör indeksi; içerik değişmedikçe yeniden üretilmez |
+| Kabul kaydı | `jarvis/acceptance.py` | 30 senaryo; durumlar gerçek test kayıtlarından okunur |
 
 ## Bilinen sınırlar
 
@@ -54,4 +85,12 @@ Bağlantı yokken JARVIS çevrimdışı çalışır; dil modeli gerektiren işle
   yalnızca siz komut verdiğinizde çalışır.
 - Skill izolasyonu süreç düzeyindedir (ayrı Python süreci, zaman aşımı, kod taraması);
   işletim sistemi düzeyinde bir kum havuzu değildir.
-- Hafıza araması kelime eşleşmesidir, anlamsal (vektör) arama değildir.
+- **Kabul durumu 21/30.** Kalan 9 senaryo gerçek sağlayıcı gerektirir; benzetimle geçtiler
+  ama anayasanın 27. bölümü gereği canlı doğrulanmadan "Doğrulandı" sayılmıyorlar.
+- Vektörler yerel karakter-üçlüsü karma vektörüdür; bir sinir ağı embedding'i değildir.
+  Yazım benzerliğini iyi, eş anlamlılığı zayıf yakalar.
+- Görev parçalama ve seviye sınıflandırması kelime tabanlıdır (satır satır böler).
+- Kota ve fiyatlar sağlayıcıdan otomatik çekilmez; kullanıcı tanımıdır.
+- Anayasadaki bazı tablolar ayrı tablo değil: `cost_ledger` `token_usage` içinde,
+  `approval_requests` `approvals`, `audit_events` `audit`, `budget_policies` `settings` içinde.
+- Dashboard'da saatlik grafik, ajan bazlı harcama ve tasarruf tahmini yok.

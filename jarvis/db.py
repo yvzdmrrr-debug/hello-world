@@ -30,6 +30,47 @@ CREATE TABLE IF NOT EXISTS experiments(
   id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, hypothesis TEXT, criterion TEXT,
   environment TEXT, result TEXT, success INTEGER, lessons TEXT);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
+-- V40 LLM ve token ekonomisi
+CREATE TABLE IF NOT EXISTS providers(
+  name TEXT PRIMARY KEY, kind TEXT, base_url TEXT, auth_env TEXT, status TEXT,
+  last_error TEXT, last_ok TEXT);
+CREATE TABLE IF NOT EXISTS models(
+  id TEXT PRIMARY KEY, provider TEXT, model TEXT, tier INTEGER, capabilities TEXT,
+  context INTEGER, max_output INTEGER, available INTEGER DEFAULT 1);
+CREATE TABLE IF NOT EXISTS model_pricing(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, model_id TEXT, version INTEGER, input_per_m REAL,
+  output_per_m REAL, cache_read_per_m REAL, cache_write_per_m REAL, currency TEXT,
+  source TEXT, verified_at TEXT);
+CREATE TABLE IF NOT EXISTS model_quotas(
+  model_id TEXT PRIMARY KEY, daily_requests INTEGER, reset_hour_utc INTEGER DEFAULT 0,
+  used INTEGER DEFAULT 0, day TEXT, exhausted_day TEXT, estimated INTEGER DEFAULT 1);
+CREATE TABLE IF NOT EXISTS subtasks(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, goal_hash TEXT, idx INTEGER, task_id TEXT,
+  title TEXT, tier INTEGER, kind TEXT, status TEXT, result TEXT, model_id TEXT);
+CREATE TABLE IF NOT EXISTS task_checkpoints(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT, ts TEXT, state TEXT);
+CREATE TABLE IF NOT EXISTS task_handoffs(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT, subtask_id INTEGER, ts TEXT,
+  from_model TEXT, to_model TEXT, reason TEXT, package TEXT, memory_ids TEXT);
+CREATE TABLE IF NOT EXISTS model_attempts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT, subtask_id INTEGER, model_id TEXT,
+  kind TEXT, ts TEXT, ok INTEGER, test_ok INTEGER, error TEXT, duration REAL);
+CREATE TABLE IF NOT EXISTS token_usage(
+  id TEXT PRIMARY KEY, task_id TEXT, subtask_id INTEGER, agent TEXT, provider TEXT,
+  model_id TEXT, started TEXT, ended TEXT, input_tokens INTEGER, output_tokens INTEGER,
+  cache_write_tokens INTEGER, cache_read_tokens INTEGER, reasoning_tokens INTEGER,
+  tool_cost REAL, cost REAL, currency TEXT, pricing_version INTEGER, status TEXT,
+  estimated INTEGER, purpose TEXT);
+CREATE TABLE IF NOT EXISTS memory_embeddings(
+  memory_id TEXT PRIMARY KEY, content_hash TEXT, vector TEXT);
+CREATE TABLE IF NOT EXISTS memory_retrievals(
+  id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, task_id TEXT, query TEXT, memory_ids TEXT,
+  sent_tokens INTEGER, pool_tokens INTEGER);
+CREATE TABLE IF NOT EXISTS solutions(
+  goal_hash TEXT PRIMARY KEY, task_id TEXT, result TEXT, models TEXT, ts TEXT);
+CREATE TABLE IF NOT EXISTS locks(resource TEXT PRIMARY KEY, owner TEXT, ts TEXT);
+CREATE TABLE IF NOT EXISTS test_results(
+  test_no INTEGER PRIMARY KEY, name TEXT, ok INTEGER, ts TEXT);
 """
 
 

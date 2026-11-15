@@ -29,6 +29,10 @@ button{cursor:pointer}button.pri{background:var(--acc);color:#fff;border-color:v
 form.row{display:flex;gap:8px}form.row input{flex:1;min-width:0}form{display:inline}
 pre{white-space:pre-wrap;margin:10px 0 0;font-size:13px}
 .big{font-size:24px;font-weight:600}
+.bar{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0}
+.bar span{flex:0 0 38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar i{display:block;height:10px;min-width:2px;border-radius:5px;background:var(--acc)}
+.bar b{font-weight:500;color:var(--mut)}
 """
 
 STATE_CLASS = {"TAMAMLANDI": "ok", "BAŞARISIZ": "bad", "ENGELLENDİ": "warn",
@@ -75,6 +79,44 @@ def render(j: Jarvis, report: str = "") -> str:
                 if s["durduruldu"] else
                 '<form method="post" action="/stop"><button>Sistemi durdur</button></form>')
     rate = lambda v: "—" if v is None else f"%{v}"
+    ek, kb = s["ekonomi"], s["kabul"]
+
+    def bars(rows, label, value, unit=""):
+        top = max((r[value] or 0 for r in rows), default=0) or 1
+        return "".join(
+            f'<div class="bar"><span>{e(r[label])}</span><i style="width:{(r[value] or 0) / top * 60:.1f}%">'
+            f'</i><b>{(r[value] or 0):,.4g}{unit}</b></div>' for r in rows) or '<p class="mut">Kayıt yok.</p>'
+    prices = {m["id"]: j.economy.price(m["id"]) for m in s["modeller"]}
+
+    def price_cell(mid):
+        p = prices[mid]
+        return e(f"{p['input_per_m']} / {p['output_per_m']}") if p else '<span class="warn">bilinmiyor</span>'
+    llm_section = f"""
+<h2 style="margin:20px 0 10px">LLM Komuta Merkezi</h2>
+<div class="grid">
+<div class="card"><h2>Token ve maliyet</h2><div class="big">{ek["maliyet"]:.4f} USD</div>
+{table(["Gösterge", "Değer"], [["İstek sayısı", ek["istek"]], ["Giriş tokenı", ek["giris"]],
+ ["Çıkış tokenı", ek["cikis"]], ["Bugün harcanan", f'{ek["gunluk_harcanan"]:.4f} USD'],
+ ["Günlük kalan bütçe", f'{ek["gunluk_kalan"]:.4f} USD'],
+ ["Bu ay harcanan", f'{ek["aylik_harcanan"]:.4f} USD'],
+ ["Aylık kalan bütçe", f'{ek["aylik_kalan"]:.4f} USD'], ["Devredilen görev", ek["devir"]],
+ ["Tahmini (kesin olmayan) kayıt", ek["tahmini"]],
+ ["Fiyatı bilinmeyen kayıt", ek["fiyati_bilinmeyen"]]])}</div>
+<div class="card"><h2>Model bazlı harcama (USD)</h2>{bars(ek["model_bazli"], "model_id", "maliyet")}
+<h2 style="margin-top:14px">Günlük token (giriş + çıkış)</h2>
+{bars([{"gun": g["gun"], "t": (g["giris"] or 0) + (g["cikis"] or 0)} for g in ek["gunluk"]], "gun", "t")}</div>
+<div class="card"><h2>Sağlayıcılar</h2>{table(["Ad", "Tür", "Durum", "Son hata"],
+ [[e(p["name"]), e(p["kind"]), e(p["status"]), e(p["last_error"] or "")] for p in s["llm"]["saglayicilar"]])}
+<h2 style="margin-top:14px">Görev devirleri</h2>{table(["Kimden", "Kime", "Neden"],
+ [[e(d["from_model"]), e(d["to_model"]), e(d["reason"])] for d in s["devirler"]])}</div>
+</div><br>
+<div class="card"><h2>Model kataloğu</h2>{table(["Model", "Seviye", "Tür", "Fiyat (giriş / çıkış, USD/1M)", "Kota"],
+ [[e(m["id"]), m["tier"], e(m["kind"]), price_cell(m["id"]),
+   "uygun" if j.economy.quota_ok(m["id"]) else '<span class="warn">dolu</span>'] for m in s["modeller"]])}</div><br>
+<div class="card"><h2>V40 kabul durumu — doğrulanan {kb["dogrulanan"]}/{kb["toplam"]} (%{kb["yuzde"]})</h2>
+<details><summary>30 kabul testi</summary>{table(["No", "Senaryo", "Durum"],
+ [[t["no"], e(t["baslik"]), f'<span class="{"ok" if t["durum"] == "Doğrulandı" else "bad" if "başarısız" in t["durum"] else "warn"}">{e(t["durum"])}</span>']
+  for t in kb["testler"]])}</details></div>"""
     return f"""<!doctype html><html lang="tr"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JARVIS Paneli</title><style>{CSS}</style><main>
@@ -104,7 +146,7 @@ def render(j: Jarvis, report: str = "") -> str:
  [[e(k), v] for k, v in s["hafiza"].items()])}</div>
 <div class="card"><h2>Denetim kaydı</h2>{table(["Zaman", "İşlem", "Sonuç"],
  [[e(a["ts"][11:19]), e(a["action"]), e(a["outcome"])] for a in s["denetim"]])}</div>
-</div></main></html>"""
+</div>{llm_section}</main></html>"""
 
 
 def make_handler(j: Jarvis):
